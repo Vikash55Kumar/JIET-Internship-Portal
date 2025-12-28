@@ -4,6 +4,7 @@ import ErrorMessage from "../../components/ErrorMessage";
 import { useAppDispatch, useAppSelector } from "../../hooks/redux";
 import { useNavigate } from "react-router-dom";
 import { loginAsync } from "../../store/slices/authSlice";
+import backgroundImage from "../../assets/images/background.webp";
 
 function Login() {
   const dispatch = useAppDispatch();
@@ -48,7 +49,7 @@ function Login() {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url('/src/assets/images/background.webp')` }}
+      style={{ backgroundImage: `url(${backgroundImage})` }}
     >
       <div className="relative w-full max-w-[800px] h-[500px] bg-[#424242] shadow-[5px_25px_50px_rgba(158,158,158,1)] transition-all duration-500 hover:shadow-[5px_25px_50px_rgba(97,97,97,1)] flex overflow-hidden mx-4">
         {/* Image Box - Hidden on mobile */}
