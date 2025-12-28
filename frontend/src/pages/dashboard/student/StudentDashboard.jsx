@@ -63,13 +63,13 @@ function StudentDashboard() {
   const menuItems = MENU_CONFIG.map(({ label, icon, key }) => ({ label, icon, key }));
   const ActiveComponent = MENU_CONFIG.find((item) => item.key === activePage)?.component;
 
-  // Responsive margin: on small screens, margin-left 64px if collapsed, 0 if open; on md+, 64px or 256px
+  // Responsive margin: on small screens, margin-left 64px if collapsed, 0 if open; on md+, 64px or 272px
   const getMarginLeft = () => {
     if (typeof window !== 'undefined') {
       if (window.innerWidth < 768) {
         return collapsed ? 64 : 0;
       } else {
-        return collapsed ? 64 : 256;
+        return collapsed ? 64 : 272;
       }
     }
     // fallback for SSR

@@ -1,4 +1,3 @@
-
 import HeaderProfile from "../../../components/HeaderProfile";
 import { useAppSelector } from "../../../hooks/redux";
 
@@ -110,15 +109,15 @@ function FacultyProfile() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="updatedAt" className="block text-gray-700 font-semibold mb-1">Last Updated</label>
+                  <label htmlFor="dateOfBirth" className="block text-gray-700 font-semibold mb-1">Date of Birth</label>
                   <input
                     readOnly
                     type="text"
-                    name="updatedAt"
-                    id="updatedAt"
+                    name="dateOfBirth"
+                    id="dateOfBirth"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF0000] bg-gray-50"
-                    placeholder={(user?.profile?.updatedAt).split('T')[0]}
-                    defaultValue={(user?.profile?.updatedAt).split('T')[0]}
+                    placeholder={user?.profile?.dateOfBirth}
+                    defaultValue={user?.profile?.dateOfBirth}
                     disabled
                   />
                 </div>

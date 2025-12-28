@@ -54,7 +54,7 @@ function FacultyDashboard() {
       if (window.innerWidth < 768) {
         return collapsed ? 64 : 0;
       } else {
-        return collapsed ? 64 : 256;
+        return collapsed ? 64 : 272;
       }
     }
     // fallback for SSR

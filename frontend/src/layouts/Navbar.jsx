@@ -22,7 +22,7 @@ const Navbar = () => {
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-3">
               <span className="inline-flex items-center justify-center h-18 w-18 rounded-md bg-white">
-                <img src="/src/assets/images/logo.jpg" alt="JIET Logo" className="h-18 w-18 object-contain" />
+                <img src="/logo.jpg" alt="JIET Logo" className="h-18 w-18 object-contain" />
               </span>
               <div>
                 <div className="text-2xl underline-none font-bold text-gray-700">JIET</div>

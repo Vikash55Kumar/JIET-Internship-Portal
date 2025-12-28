@@ -211,6 +211,7 @@ const registerFaculty = asyncHandler(async (req, res) => {
       user: newUser._id,
       email: email,
       fullName,
+      dateOfBirth: cleanValue(dateOfBirth) || null,
       employeeId: employeeId || "",
       designation: designation || "",
       phoneNumber: phoneNumber || "",

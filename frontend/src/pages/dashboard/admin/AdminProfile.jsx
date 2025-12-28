@@ -4,7 +4,7 @@ import { useAppSelector } from "../../../hooks/redux";
 function AdminProfile() {
 
   const { user } = useAppSelector((state) => state.auth);
-
+  
   return (
     <div className="flex bg-gradient-to-br from-gray-100 via-white to-gray-200 min-h-[100vh]">
       <section className="flex-1 flex flex-col px-0 md:px-0 w-full max-w-7xl mx-auto">
@@ -109,15 +109,15 @@ function AdminProfile() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="updatedAt" className="block text-gray-700 font-semibold mb-1">Last Updated</label>
+                  <label htmlFor="dateOfBirth" className="block text-gray-700 font-semibold mb-1">Date of Birth</label>
                   <input
                     readOnly
-                    type="text"
-                    name="updatedAt"
-                    id="updatedAt"
+                    type="date"
+                    name="dateOfBirth"
+                    id="dateOfBirth"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF0000] bg-gray-50"
-                    placeholder={(user?.profile?.updatedAt).split('T')[0]}
-                    defaultValue={(user?.profile?.updatedAt).split('T')[0]}
+                    placeholder={user?.profile?.dateOfBirth}
+                    defaultValue={user?.profile?.dateOfBirth}
                     disabled
                   />
                 </div>

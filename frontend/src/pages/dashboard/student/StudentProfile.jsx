@@ -5,6 +5,7 @@ import { useAppSelector } from "../../../hooks/redux";
 function StudentProfile() {
 
   const { user } = useAppSelector((state) => state.auth);
+console.log("vgg", user.profile);
 
   return (
     <div className="flex bg-gradient-to-br from-gray-100 via-white to-gray-200 min-h-[100vh]">
@@ -110,15 +111,15 @@ function StudentProfile() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="branchId" className="block text-gray-700 font-semibold mb-1">Branch</label>
+                  <label htmlFor="branch" className="block text-gray-700 font-semibold mb-1">Branch</label>
                   <input
                     readOnly
                     type="text"
-                    name="branchId"
-                    id="branchId"
+                    name="branch"
+                    id="branch"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF0000] bg-gray-50"
-                    placeholder={user?.profile?.branchId}
-                    defaultValue={user?.profile?.branchId}
+                    placeholder={user?.profile?.branch?.name}
+                    defaultValue={user?.profile?.branch?.name}
                     disabled
                   />
                 </div>
