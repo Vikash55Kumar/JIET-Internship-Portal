@@ -3,7 +3,9 @@ import api from '../utils/baseApi';
 export const studentService = {
 
   async submitInternshipApplication(data)  {
-    const response = await api.post('/students/submit-choices', data);
+    const response = await api.post('/students/submit-choices', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data; // Extract data from ApiResponse wrapper
   },
 
@@ -15,5 +17,12 @@ export const studentService = {
   async updateCompanyDetails(data)  {
     const response = await api.post('/companies/update-company', data);
     return response.data.data;
+  },
+
+  async downloadTrainingLetter() {
+    const response = await api.get('/students/training-letter', {
+      responseType: 'blob',
+    });
+    return response.data; // Blob (PDF)
   },
 };

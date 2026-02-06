@@ -36,6 +36,32 @@ export const registerFacultyAsync = createAsyncThunk(
   }
 );
 
+export const updateFacultyAsync = createAsyncThunk(
+  'admin/updateFaculty',
+  async ({ facultyId, facultyData }, { rejectWithValue }) => {
+    try {
+      const response = await adminService.updateFaculty(facultyId, facultyData);
+      return response;
+    } catch (error) {
+      const message = error?.response?.data || 'Update faculty failed';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const deleteFacultyAsync = createAsyncThunk(
+  'admin/deleteFaculty',
+  async (facultyId, { rejectWithValue }) => {
+    try {
+      const response = await adminService.deleteFaculty(facultyId);
+      return response;
+    } catch (error) {
+      const message = error?.response?.data || 'Delete faculty failed';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 export const getAllStudentDetailsAsync = createAsyncThunk(
   'admin/getAllStudentsDetails',
   async (_, { rejectWithValue }) => {
@@ -101,11 +127,24 @@ export const updateStudentAsync = createAsyncThunk(
   }
 );
 
+export const deleteStudentAsync = createAsyncThunk(
+  'admin/deleteStudent',
+  async (studentId, { rejectWithValue }) => {
+    try {
+      const response = await adminService.deleteStudent(studentId);
+      return response;
+    } catch (error) {
+      const message = error?.response?.data || 'Delete student failed';
+      return rejectWithValue(message);
+    }
+  }
+);
+
 export const allocateCompanyAsync = createAsyncThunk(
   'admin/allocateCompany',
-  async ({ studentId }, { rejectWithValue }) => {
+  async ({ studentId, companyId }, { rejectWithValue }) => {
     try {
-      const response = await adminService.allocateCompany(studentId);
+      const response = await adminService.allocateCompany(studentId, companyId);
       return response;
     } catch (error) {
       const message = error?.response?.data || 'Allocate company failed';
@@ -135,6 +174,32 @@ export const updateAllocatedCompanyAsync = createAsyncThunk(
       return response;
     } catch (error) {
       const message = error?.response?.data || 'Reject application failed';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const resetStudentChoicesAsync = createAsyncThunk(
+  'admin/resetStudentChoices',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await adminService.resetStudentChoices();
+      return response;
+    } catch (error) {
+      const message = error?.response?.data || 'Reset student choices failed';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fullResetStudentsAsync = createAsyncThunk(
+  'admin/fullResetStudents',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await adminService.fullResetStudents();
+      return response;
+    } catch (error) {
+      const message = error?.response?.data || 'Full reset failed';
       return rejectWithValue(message);
     }
   }
@@ -196,6 +261,40 @@ const adminSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      .addCase(updateFacultyAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateFacultyAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        const updated = action.payload?.data;
+        if (updated?._id) {
+          state.allFacultyDetails = state.allFacultyDetails.map((f) =>
+            f._id === updated._id ? updated : f
+          );
+        }
+      })
+      .addCase(updateFacultyAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(deleteFacultyAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteFacultyAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        const deleted = action.payload?.data;
+        if (deleted?._id) {
+          state.allFacultyDetails = state.allFacultyDetails.filter((f) => f._id !== deleted._id);
+        }
+      })
+      .addCase(deleteFacultyAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       .addCase(getAllStudentApplicationDetailsAsync.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -218,6 +317,23 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(updateStudentAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(deleteStudentAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteStudentAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+        const deleted = action.payload?.data;
+        if (deleted?._id) {
+          state.allStudentsDetails = state.allStudentsDetails.filter((s) => s._id !== deleted._id);
+          state.allStudentApplicationDetails = state.allStudentApplicationDetails.filter((s) => s._id !== deleted._id);
+        }
+      })
+      .addCase(deleteStudentAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -266,6 +382,30 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(updateAllocatedCompanyAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(resetStudentChoicesAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resetStudentChoicesAsync.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(resetStudentChoicesAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fullResetStudentsAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fullResetStudentsAsync.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(fullResetStudentsAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

@@ -17,6 +17,16 @@ export const adminService = {
     return response.data; // Extract data from ApiResponse wrapper
   },
 
+  async updateFaculty(facultyId, data) {
+    const response = await api.put(`/admins/faculties/${facultyId}`, data);
+    return response.data;
+  },
+
+  async deleteFaculty(facultyId) {
+    const response = await api.delete(`/admins/faculties/${facultyId}`);
+    return response.data;
+  },
+
   async getAllStudentsDetails() {
     const response = await api.get('/admins/all-students');
     return response.data.data; // Extract data from ApiResponse wrapper
@@ -48,8 +58,13 @@ export const adminService = {
     return response.data;
   },
 
-  async allocateCompany(studentId)  {
-    const response = await api.post('/admins/allocate-company', { studentId });
+  async deleteStudent(studentId) {
+    const response = await api.delete(`/admins/students/${studentId}`);
+    return response.data;
+  },
+
+  async allocateCompany(studentId, companyId)  {
+    const response = await api.post('/admins/allocate-company', { studentId, companyId });
     return response.data;
   },
 
@@ -62,6 +77,23 @@ export const adminService = {
     console.log("cccC", studentId, companyId);
     
     const response = await api.post('/admins/update-allocated-company', { studentId, companyId });
+    return response.data;
+  },
+
+  async resetStudentChoices() {
+    const response = await api.post('/admins/reset-student-choices');
+    return response.data;
+  },
+
+  async fullResetStudents() {
+    const response = await api.post('/admins/full-reset-students');
+    return response.data;
+  },
+
+  async downloadStudentTempPasswords() {
+    const response = await api.get('/admins/download-student-temp-passwords', {
+      responseType: 'blob',
+    });
     return response.data;
   },
 };

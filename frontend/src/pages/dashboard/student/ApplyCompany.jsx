@@ -39,12 +39,14 @@ function ApplyCompany() {
     domain: null, // will be domain object
     company: null, // will be company object
     location: "",
+    resumeFile: null,
     domainDropdownOpen: false,
     companyDropdownOpen: false,
     locationDropdownOpen: false
   });
 
   const [error, setError] = useState("");
+  const MAX_RESUME_SIZE = 1 * 1024 * 1024; // 1MB
 
   // --- HANDLERS ---
   // --- OUTSIDE CLICK HANDLER ---
@@ -84,6 +86,7 @@ function ApplyCompany() {
       domain: domainObj,
       company: null,
       location: "",
+      resumeFile: null,
       domainDropdownOpen: false,
       companyDropdownOpen: false,
       locationDropdownOpen: false
@@ -100,6 +103,7 @@ function ApplyCompany() {
       ...prev,
       company: companyObj,
       location: "",
+      resumeFile: null,
       companyDropdownOpen: false,
       locationDropdownOpen: false
     }));
@@ -114,11 +118,33 @@ function ApplyCompany() {
     }));
   };
 
+  const handleResumeChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (file && file.size > MAX_RESUME_SIZE) {
+      setError("Resume must be 1MB or smaller.");
+      setCurrentSelection(prev => ({ ...prev, resumeFile: null }));
+      return;
+    }
+    setError("");
+    setCurrentSelection(prev => ({
+      ...prev,
+      resumeFile: file
+    }));
+  };
+
   // 4. Add Choice to List
   const handleAddChoice = () => {
     // Validation
     if (!currentSelection.domain || !currentSelection.company || !currentSelection.location) {
       setError("Please select all fields (Domain, Company, and Location).");
+      return;
+    }
+    if (!currentSelection.resumeFile) {
+      setError("Please upload a resume for this choice.");
+      return;
+    }
+    if (currentSelection.resumeFile.size > MAX_RESUME_SIZE) {
+      setError("Resume must be 1MB or smaller.");
       return;
     }
 
@@ -142,7 +168,8 @@ function ApplyCompany() {
       priority: choices.length + 1,
       domain: currentSelection.domain,
       company: currentSelection.company,
-      location: currentSelection.location
+      location: currentSelection.location,
+      resumeFile: currentSelection.resumeFile
     };
 
     setChoices([...choices, newChoice]);
@@ -151,6 +178,7 @@ function ApplyCompany() {
       domain: null,
       company: null,
       location: "",
+      resumeFile: null,
       domainDropdownOpen: false,
       companyDropdownOpen: false,
       locationDropdownOpen: false
@@ -181,7 +209,14 @@ function ApplyCompany() {
     }));
 
     try {
-      const response = await dispatch(submitInternshipApplicationAsync({choices:submission})).unwrap();
+      const formData = new FormData();
+      formData.append("choices", JSON.stringify(submission));
+      choices.forEach((item) => {
+        if (item.resumeFile) {
+          formData.append(`resume_${item.priority}`, item.resumeFile);
+        }
+      });
+      const response = await dispatch(submitInternshipApplicationAsync(formData)).unwrap();
       if (response.success === true || response.statusCode === 200) {
         await dispatch(getCurrentUserAsync());
         toast.success(response.message || "Choices submitted successfully!");
@@ -192,6 +227,11 @@ function ApplyCompany() {
       const message = error?.message || "Submission failed.";
       toast.error(message);
     }
+      // After save logic, reset resumeFile in currentSelection
+      setCurrentSelection(prev => ({
+        ...prev,
+        resumeFile: null
+      }));
   };
 
   // --- DERIVED DATA Helpers ---
@@ -240,7 +280,7 @@ function ApplyCompany() {
                               </div>
                               <span className="text-lg font-bold text-gray-800">Add New Preferences</span>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-4">
                             {/* 1. Domain Dropdown */}
                               <div className="relative" ref={domainDropdownRef}>
                               <label className="block text-xs font-semibold text-gray-600 mb-1">Step 1: Domain</label>
@@ -358,6 +398,25 @@ function ApplyCompany() {
                                 </div>
                               )}
                             </div>
+
+                            {/* 4. Resume Upload */}
+                            <div className="relative">
+                              <label className="block text-xs font-semibold text-gray-600 mb-1">Step 4: Upload Resume</label>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="file"
+                                  accept=".pdf"
+                                  onChange={handleResumeChange}
+                                  className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 text-sm"
+                                />
+                                {currentSelection.resumeFile && (
+                                  <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded px-2 py-1 max-w-[200px] truncate">
+                                    {currentSelection.resumeFile.name}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">Max size 1MB. Format: PDF only.</div>
+                            </div>
                           </div>
 
                           {/* Error Message */}
@@ -415,6 +474,12 @@ function ApplyCompany() {
                                             <div className="flex items-center gap-2 text-gray-500 text-xs md:justify-start">
                                               <MdDomain className="text-gray-400" />
                                               {item.domain && item.domain.name ? item.domain.name : ''}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-500 text-xs md:col-span-3">
+                                              <span className="font-semibold">Resume:</span>
+                                              <span className="truncate">
+                                                {item.resumeFile ? item.resumeFile.name : "Not uploaded"}
+                                              </span>
                                             </div>
                                           </div>
 

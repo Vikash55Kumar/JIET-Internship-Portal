@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, isPending, isFulfilled, isRejected } from '@reduxjs/toolkit';
 import { studentService } from '../../services/studentService';
 
 const initialState = {
@@ -64,6 +64,17 @@ const studentSlice = createSlice({
         state.error = null;
       })
       .addCase(getDomainCompaniesAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addMatcher(isPending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addMatcher(isFulfilled, (state) => {
+        state.loading = false;
+      })
+      .addMatcher(isRejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

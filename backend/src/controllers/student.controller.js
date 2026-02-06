@@ -5,6 +5,10 @@ import { Student } from "../models/student.model.js";
 import { User } from "../models/user.model.js";
 import { Domain } from "../models/domain.model.js";
 import { Company } from "../models/company.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import fs from "fs";
+import path from "path";
 
 
 // Get Student Profile
@@ -212,7 +216,7 @@ const updateSurveyPreferences = asyncHandler(async (req, res) => {
 // Submit Internship Choices (4 Priority Choices, with companyId, domainId, location, priority)
 const submitInternshipChoices = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
-  const { choices } = req.body;
+  let { choices } = req.body;
 
   if (!userId) {
     throw new ApiError(401, "Unauthorized");
@@ -227,6 +231,14 @@ const submitInternshipChoices = asyncHandler(async (req, res) => {
   const studentCheck = await Student.findOne({ user: userId });
   if (studentCheck.internshipData.isFormSubmitted) {
     throw new ApiError(400, "Internship choices have already been submitted and cannot be modified");
+  }
+
+  if (typeof choices === "string") {
+    try {
+      choices = JSON.parse(choices);
+    } catch (err) {
+      throw new ApiError(400, "Invalid choices format");
+    }
   }
 
   if (!choices || !Array.isArray(choices) || choices.length === 0) {
@@ -259,7 +271,6 @@ const submitInternshipChoices = asyncHandler(async (req, res) => {
 
   // 1. Verify all companies exist, are active, and OPEN, and match the domainId
   const companyIds = choices.map(c => c.companyId);
-  const { Company } = await import("../models/company.model.js");
   const companies = await Company.find({ _id: { $in: companyIds }, isActive: true, recruitmentStatus: "OPEN" }).populate("domainTags");
   if (companies.length !== companyIds.length) {
     throw new ApiError(400, "One or more companies are invalid, inactive, or not open for recruitment");
@@ -291,14 +302,40 @@ const submitInternshipChoices = asyncHandler(async (req, res) => {
   }
 
   // Save choices in the new structure, including domain (company, domain, location, priority)
-    student.internshipData = student.internshipData || {};
+  const files = req.files || {};
+    const processedChoices = [];
 
-    student.internshipData.choices = choices.map(c => ({
-      company: c.companyId.toString(),
-      domain: c.domainId.toString(),
-      location: c.location,
-      priority: c.priority,
-    }));
+    for (const choice of choices) {
+      const priority = choice.priority;
+      const fileKey = `resume_${priority}`; // e.g., resume_1
+      let resumeUrl = "";
+
+      // Check if file exists for this priority
+      if (files[fileKey] && files[fileKey][0]) {
+        const localFilePath = files[fileKey][0].path;
+        const uploadResult = await uploadOnCloudinary(localFilePath);
+        
+        if (!uploadResult?.secure_url) {
+          throw new ApiError(500, `Failed to upload resume for choice priority ${priority}`);
+        }
+        resumeUrl = uploadResult.secure_url;
+      } else {
+        throw new ApiError(400, `Resume file is mandatory for choice priority ${priority}`);
+      }
+
+      processedChoices.push({
+        company: choice.companyId,
+        domain: choice.domainId,
+        location: choice.location,
+        priority: choice.priority,
+        resume: resumeUrl // The Cloudinary URL
+      });
+    }
+
+    // 5. Update Student Data
+    // Ensure we initialize objects if they don't exist
+    student.internshipData = student.internshipData || {};
+    student.internshipData.choices = processedChoices;
 
     student.internshipData.isFormSubmitted = true;
     student.internshipData.approvalStatus = "PENDING_REVIEW";
@@ -386,6 +423,116 @@ const getAllCompaniesWithDomains = asyncHandler(async (req, res) => {
   );
 });
 
+// Generate Training Letter PDF from official template
+const generateTrainingLetterPdf = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user || user.role !== "STUDENT") {
+    throw new ApiError(403, "Not a student user");
+  }
+
+  const student = await Student.findOne({ user: userId })
+    .populate("branch", "name code programType")
+    .populate("internshipData.allocatedCompany", "name location");
+
+  if (!student) {
+    throw new ApiError(404, "Student profile not found");
+  }
+
+  // Paths to official templates (PDF preferred)
+  const templatePdfPath = path.join(
+    process.cwd(),
+    "public",
+    "temp",
+    "Training Letter.pdf"
+  );
+
+  if (!fs.existsSync(templatePdfPath)) {
+    throw new ApiError(500, "Training letter template not found on server");
+  }
+
+  const existingPdfBytes = fs.readFileSync(templatePdfPath);
+  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  const pages = pdfDoc.getPages();
+  const firstPage = pages[0];
+  const { width, height } = firstPage.getSize();
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontSize = 10;
+
+  // Helper to draw normal text
+  const drawText = (text, x, y) => {
+    firstPage.drawText(text ?? "", {
+      x,
+      y,
+      size: fontSize,
+      font,
+    });
+  };
+  // Map student fields to template fields
+  const allocatedCompany = student.internshipData.allocatedCompany?.name || "";
+  const branchName = student.branch?.name || "";
+  const name = student.fullName || "";
+  const courseYear = `${student.branch?.name || ""} / Year ${student.year || ""}`;
+  const rollNo = student.rollNumber || "";
+  const email = student.email || user.email || "";
+  const contactNo = student.phoneNumber || "";
+
+  // NOTE: X/Y coordinates must be aligned with the blanks
+  // on your official Training Letter.pdf. Adjust these values
+  // once by testing until text sits exactly in the right place.
+  // Coordinates below are placeholders for A4 portrait.
+  // Example positions (from left-bottom origin):
+  // Allocated Name : ______________________ (bold)
+  firstPage.drawText(allocatedCompany ?? "", {
+    x: 100,
+    y: height - 382,
+    size: fontSize,
+    font: boldFont,
+  });
+
+  // Branch Name : ______________________
+    firstPage.drawText(branchName ?? "", {
+    x: 186,
+    y: height - 397,
+    size: fontSize,
+    font: boldFont,
+  });
+  // drawText(branchName, 186, height - 397);
+  
+  // Name of Student : ______________________
+  drawText(name, 250, height - 431);
+
+  // Course/Year : ______________________
+  drawText(courseYear, 250, height - 443);
+
+  // Roll.No. : ______________________
+  drawText(rollNo, 250, height - 458);
+
+  // Email : ______________________
+  drawText(email, 250, height - 471);
+
+  // Contact No. : ______________________
+  drawText(contactNo, 250, height - 484);
+
+  const pdfBytes = await pdfDoc.save();
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=Training_Letter.pdf"
+  );
+  return res.status(200).send(Buffer.from(pdfBytes));
+});
+
+
 export {
   getStudentProfile,
   updateStudentProfile,
@@ -394,4 +541,5 @@ export {
   getApplicationStatus,
   updateStudentDomain,
   getAllCompaniesWithDomains,
+  generateTrainingLetterPdf,
 };

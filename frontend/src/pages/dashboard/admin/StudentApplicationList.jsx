@@ -49,6 +49,8 @@ function PreferredDomainsCollapse({ domains }) {
 function StudentApplicationList() {
     const [rejectPopup, setRejectPopup] = useState({ open: false, appId: null });
     const [rejectReason, setRejectReason] = useState("");
+    const [approvePopup, setApprovePopup] = useState({ open: false, app: null, companyId: "" });
+    const [confirmApprovePopup, setConfirmApprovePopup] = useState({ open: false, app: null, companyId: "" });
     // Dropdown open state for custom filters
     const [showFilters, setShowFilters] = React.useState(false);
     const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
@@ -115,9 +117,11 @@ function StudentApplicationList() {
             choices: Array.isArray(item.internshipData?.choices)
                 ? item.internshipData.choices.map(choice => ({
                     company: choice.company?.name || "-",
+                    companyId: choice.company?._id || null,
                     domain: choice.domain?.name || "-",
                     location: choice.location || "-",
-                    priority: choice.priority
+                    priority: choice.priority,
+                    resume: choice.resume || ""
                 }))
                 : [],
             status: item.internshipData?.approvalStatus || "PENDING",
@@ -172,7 +176,7 @@ function StudentApplicationList() {
         setFilters({ search: "", approvalStatus: "ALL", domain: "ALL", branch: "ALL", city: "" });
     };
 
-    const handleApprovedApplication = async (studentId) => {
+    const handleApprovedApplication = async (studentId, companyId) => {
         try {
             setLoadingActions(prev => ({ ...prev, [studentId]: true }));
             
@@ -185,8 +189,12 @@ function StudentApplicationList() {
                 toast.error("Student ID is missing");
                 return;
             }
+            if(!companyId){
+                toast.error("Company is missing");
+                return;
+            }
             // Call API
-            const response = await dispatch(allocateCompanyAsync({ studentId })).unwrap();
+            const response = await dispatch(allocateCompanyAsync({ studentId, companyId })).unwrap();
             
             if (response.success === true || response.statusCode === 200) {
                 await dispatch(getAllStudentApplicationDetailsAsync());
@@ -449,12 +457,12 @@ function StudentApplicationList() {
                                 <tbody className="divide-y divide-gray-100">
                                     {filteredApplications.length > 0 ? (
                                         filteredApplications.map((app) => (
-                                            <tr key={app._id} className="hover:bg-red-50/30 transition-colors group">
+                                            <tr key={app._id} className={`transition-colors group ${app.allocatedCompany ? "bg-green-50/60 hover:bg-green-50/80" : "hover:bg-red-50/30"}`}>
                                                 <td className="py-2 px-3 align-center font-bold text-gray-800 text-sm min-w-[160px]">{app.student.name}</td>
                                                 <td className="py-2 px-3 align-center text-sm text-gray-700">{app.student.roll}</td>
                                                 <td className="py-2 px-3 align-center text-sm text-gray-700">{app.student.branch}</td>
                                                 {app.choices.map((choice, idx) => (
-                                                    <td key={idx} className="py-2 px-3 text-sm min-w-[200px]">
+                                                    <td key={idx} className={`py-2 px-3 text-sm min-w-[220px] ${app.allocatedCompany && app.allocatedCompany === choice.company ? "bg-green-100/60" : ""}`}>
                                                         <div className="font-semibold text-gray-700 whitespace-normal break-words text-center">{choice.company}</div>
                                                         <div className="flex flex-wrap gap-1 mt-1 justify-center">
                                                             {Array.isArray(choice.domain)
@@ -468,6 +476,31 @@ function StudentApplicationList() {
                                                                         {choice.domain}
                                                                     </span>
                                                                 )}
+                                                        </div>
+                                                        <div className="text-[10px] mt-1 text-center">
+                                                            {choice.resume ? (
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <a
+                                                                        href={choice.resume}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="text-blue-600 hover:underline"
+                                                                    >
+                                                                        View
+                                                                    </a>
+                                                                    <a
+                                                                        href={choice.resume}
+                                                                        download
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="text-gray-700 hover:underline"
+                                                                    >
+                                                                        Download
+                                                                    </a>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400">No resume</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 ))}
@@ -528,7 +561,15 @@ function StudentApplicationList() {
                                                                             )}
                                                                         </button>
                                                                         <button
-                                                                            onClick={() => handleApprovedApplication(app._id)}
+                                                                            onClick={() => {
+                                                                                const choiceCompanies = Array.isArray(app.choices) ? app.choices : [];
+                                                                                const selectable = choiceCompanies.filter(c => c.companyId);
+                                                                                if (!selectable.length) {
+                                                                                    toast.error("No valid company choices found for this student.");
+                                                                                    return;
+                                                                                }
+                                                                                setApprovePopup({ open: true, app, companyId: "" });
+                                                                            }}
                                                                             className="flex items-center !rounded-xl gap-1 px-2.5 bg-green-200 text-black rounded-md font-semibold !text-xs hover:bg-green-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={loadingActions[app._id]}
                                                                         >
@@ -565,6 +606,89 @@ function StudentApplicationList() {
                 </div>
             </div>
         </section>
+        {/* Approve Choice Popup */}
+        {approvePopup.open && approvePopup.app && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md w-full text-center">
+                    <div className="text-lg font-semibold text-gray-800 mb-2">Select Company</div>
+                    <div className="text-gray-500 text-sm mb-4">Choose one of the student's 4 preferences.</div>
+                    <div className="mb-4">
+                        <select
+                            className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-200 text-gray-700"
+                            value={approvePopup.companyId}
+                            onChange={(e) => setApprovePopup(prev => ({ ...prev, companyId: e.target.value }))}
+                        >
+                            <option value="">Select company...</option>
+                            {approvePopup.app.choices.filter(c => c.companyId).map((c, idx) => (
+                                <option key={`${approvePopup.app._id}-${idx}`} value={c.companyId}>
+                                    {c.company}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                            onClick={() => setApprovePopup({ open: false, app: null, companyId: "" })}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm transition-colors disabled:opacity-50"
+                            disabled={!approvePopup.companyId}
+                            onClick={() => {
+                                setConfirmApprovePopup({
+                                    open: true,
+                                    app: approvePopup.app,
+                                    companyId: approvePopup.companyId
+                                });
+                                setApprovePopup({ open: false, app: null, companyId: "" });
+                            }}
+                        >
+                            Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        {/* Approve Confirmation Popup */}
+        {confirmApprovePopup.open && confirmApprovePopup.app && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md w-full text-center">
+                    <div className="mb-4">
+                        <svg className="w-12 h-12 mx-auto text-red-500" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12l2.5 2.5L16 9" />
+                        </svg>
+                    </div>
+                    <div className="text-lg font-semibold text-gray-800 mb-2">Confirm Allocation</div>
+                    <div className="text-gray-500 text-sm mb-6">
+                        Allocate <span className="font-bold text-green-700">{confirmApprovePopup.app.student.name}</span>
+                        {" "}to{" "}
+                        <span className="font-bold text-green-700">
+                            {confirmApprovePopup.app.choices.find(c => (c.companyId || c.company) === confirmApprovePopup.companyId)?.company || "selected company"}
+                        </span>?
+                    </div>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                            onClick={() => setConfirmApprovePopup({ open: false, app: null, companyId: "" })}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm transition-colors"
+                            onClick={() => {
+                                handleApprovedApplication(confirmApprovePopup.app._id, confirmApprovePopup.companyId);
+                                setConfirmApprovePopup({ open: false, app: null, companyId: "" });
+                            }}
+                        >
+                            Yes, Allocate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         {/* Reject Reason Popup */}
         {rejectPopup.open && (
             <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
