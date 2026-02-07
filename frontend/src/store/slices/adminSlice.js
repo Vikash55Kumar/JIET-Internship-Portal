@@ -205,10 +205,76 @@ export const fullResetStudentsAsync = createAsyncThunk(
   }
 );
 
+export const downloadCompanyStudentsAsync = createAsyncThunk(
+  'admin/downloadCompanyStudents',
+  async ({ companyId, type }, { rejectWithValue }) => {
+    try {
+      const response = await adminService.downloadCompanyStudents(companyId, type);
+      return response;
+    } catch (error) {      
+      let message = 'Download failed';
+      const data = error?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          try {
+            const json = JSON.parse(text);
+            message = json?.message || message;
+          } catch {
+            message = text || message;
+          }
+        } catch {
+          message = message;
+        }
+      } else if (typeof data === 'string') {
+        message = data;
+      } else if (data?.message) {
+        message = data.message;
+      }
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const downloadAllCompanyStudentsAsync = createAsyncThunk(
+  'admin/downloadAllCompanyStudents',
+  async ({ type }, { rejectWithValue }) => {
+    try {
+      const response = await adminService.downloadAllCompanyStudents(type);
+      return response;
+    } catch (error) {
+      let message = 'Download failed';
+      const data = error?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          try {
+            const json = JSON.parse(text);
+            message = json?.message || message;
+          } catch {
+            message = text || message;
+          }
+        } catch {
+          message = message;
+        }
+      } else if (typeof data === 'string') {
+        message = data;
+      } else if (data?.message) {
+        message = data.message;
+      }
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const adminSlice = createSlice({
   name: 'admin',
   initialState,
-  reducers: {},
+  reducers: {
+    setAdminLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(getAllStudentDetailsAsync.pending, (state) => {
@@ -409,8 +475,32 @@ const adminSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      .addCase(downloadCompanyStudentsAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(downloadCompanyStudentsAsync.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(downloadCompanyStudentsAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(downloadAllCompanyStudentsAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(downloadAllCompanyStudentsAsync.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(downloadAllCompanyStudentsAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
   },
 });
 
 export default adminSlice.reducer;
-export const {} = adminSlice.actions;
+export const { setAdminLoading } = adminSlice.actions;

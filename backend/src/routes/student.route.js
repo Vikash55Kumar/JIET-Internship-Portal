@@ -9,6 +9,7 @@ import {
 	updateStudentDomain,
 	getAllCompaniesWithDomains,
 	generateTrainingLetterPdf,
+	getFeatureSettingsPublic,
 } from "../controllers/student.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -27,6 +28,7 @@ router.post("/submit-choices", verifyJWT,
 	]), submitInternshipChoices);
 router.get("/application-status", verifyJWT, getApplicationStatus);
 router.put("/update-domain", verifyJWT, updateStudentDomain);
-router.get("/training-letter", verifyJWT, generateTrainingLetterPdf);
+router.get("/training-letter/:studentId", verifyJWT, generateTrainingLetterPdf);
+router.get("/feature-flags", verifyJWT, getFeatureSettingsPublic);
 
 export default router;

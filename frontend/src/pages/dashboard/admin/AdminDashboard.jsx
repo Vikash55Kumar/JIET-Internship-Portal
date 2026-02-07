@@ -34,6 +34,12 @@ const MENU_CONFIG = [
     component: CompanyList,
   },
   {
+    label: "Add Company ",
+    icon: MdPersonAdd,
+    key: "updateCompany",
+    component: AddCompany,
+  },
+  {
     label: "Student Application",
     icon: MdAssignment,
     key: "studentApplicationList",
@@ -68,12 +74,6 @@ const MENU_CONFIG = [
     icon: BsListCheck,
     key: "updateStudent",
     component: StudentProfileUpdate,
-  },
-  {
-    label: "Add Company ",
-    icon: BsListCheck,
-    key: "updateCompany",
-    component: AddCompany,
   },
   {
     label: "Settings",

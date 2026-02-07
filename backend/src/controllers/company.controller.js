@@ -15,7 +15,7 @@ const addCompany = asyncHandler(async (req, res) => {
     allowedBranches,
     totalSeats,
     stipendAmount,
-    isActive,
+    recruitmentStatus,
   } = req.body;
 
   if (req.user.role !== "ADMIN" && req.user.role !== "FACULTY") {
@@ -56,8 +56,7 @@ const addCompany = asyncHandler(async (req, res) => {
     allowedBranches: allowedBranches || [],
     totalSeats,
     stipendAmount: stipendAmount || 'N/A',
-    isActive: true,
-    recruitmentStatus: "OPEN",
+    recruitmentStatus: recruitmentStatus || "OPEN",
   });
 
   if (!newCompany) {
@@ -71,13 +70,9 @@ const addCompany = asyncHandler(async (req, res) => {
 
 // Get All Companies (TPO Dashboard)
 const getAllCompanies = asyncHandler(async (req, res) => {
-  const { isActive, recruitmentStatus } = req.query;
+  const { recruitmentStatus } = req.query;
 
   const filter = {};
-
-  if (isActive !== undefined) {
-    filter.isActive = isActive === "true";
-  }
 
   if (recruitmentStatus) {
     filter.recruitmentStatus = recruitmentStatus;
@@ -130,7 +125,6 @@ const getCompaniesForStudent = asyncHandler(async (req, res) => {
   }
 
   const filter = {
-    isActive: true,
     recruitmentStatus: "OPEN",
     $expr: { $gt: [{ $subtract: ["$totalSeats", "$filledSeats"] }, 0] }, // Seats available
     minCgpa: { $lte: parseFloat(currentCgpa) }, // Student meets CGPA requirement
@@ -184,7 +178,7 @@ const updateCompanyDetails = asyncHandler(async (req, res) => {
     allowedBranches,
     totalSeats,
     stipendAmount,
-    isActive,
+    recruitmentStatus,
   } = req.body;
 
   const company = await Company.findById(companyId);
@@ -223,7 +217,7 @@ const updateCompanyDetails = asyncHandler(async (req, res) => {
   if (allowedBranches) company.allowedBranches = allowedBranches;
   if (totalSeats !== undefined) company.totalSeats = totalSeats;
   if (stipendAmount !== undefined) company.stipendAmount = stipendAmount;
-  if (isActive !== undefined) company.isActive = isActive;
+  if (recruitmentStatus) company.recruitmentStatus = recruitmentStatus;
 
   await company.save();
 

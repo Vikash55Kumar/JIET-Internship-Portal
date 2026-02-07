@@ -48,7 +48,7 @@ function UpdateCompany({ onClose, initialData = null }) {
             : [],
         totalSeats: initialData?.totalSeats ? String(initialData.totalSeats) : "",
         stipendAmount: initialData?.stipendAmount || "",
-        isActive: typeof initialData?.isActive === "boolean" ? initialData.isActive : true
+        recruitmentStatus: initialData?.recruitmentStatus || "OPEN"
     }));
 
     // Close dropdowns on outside click
@@ -158,7 +158,7 @@ function UpdateCompany({ onClose, initialData = null }) {
             allowedBranches: formData.allowedBranches,
             totalSeats: Number(formData.totalSeats),
             stipendAmount: formData.stipendAmount || "N/A",
-            isActive: formData.isActive
+            recruitmentStatus: formData.recruitmentStatus
         };
 
         try {
@@ -194,19 +194,29 @@ function UpdateCompany({ onClose, initialData = null }) {
                         Edit company details, eligibility criteria, and hiring capacity.
                     </p>
 
-                    {/* Status */}
+                    {/* Recruitment Status */}
                     <div className="px-4 mb-8">
                         <div className="mt-4 w-1/2 relative" ref={statusRef}>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Recruitment Status</label>
                             <button
                                 type="button"
                                 onClick={handleStatusDropdown}
                                 className={`w-full flex items-center justify-between px-4 py-2 bg-white border rounded-lg text-sm focus:outline-none transition-colors ${
-                                    formData.isActive ? "text-green-700 border-green-300" : "text-red-700 border-red-300"
+                                    formData.recruitmentStatus === "OPEN"
+                                        ? "text-green-700 border-green-300"
+                                        : formData.recruitmentStatus === "PAUSED"
+                                            ? "text-yellow-700 border-yellow-300"
+                                            : "text-red-700 border-red-300"
                                 } hover:border-red-400`}
                             >
-                                <span className={`font-bold ${formData.isActive ? "text-green-700" : "text-red-700"}`}>
-                                    {formData.isActive ? "Active" : "Inactive"}
+                                <span className={`font-bold ${
+                                    formData.recruitmentStatus === "OPEN"
+                                        ? "text-green-700"
+                                        : formData.recruitmentStatus === "PAUSED"
+                                            ? "text-yellow-700"
+                                            : "text-red-700"
+                                }`}>
+                                    {formData.recruitmentStatus}
                                 </span>
                                 <MdArrowDropDown className="ml-2 text-gray-400" />
                             </button>
@@ -214,25 +224,36 @@ function UpdateCompany({ onClose, initialData = null }) {
                                 <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                                     <button
                                         className={`w-full text-left px-4 py-2 text-sm hover:bg-green-50 hover:text-green-700 ${
-                                            formData.isActive ? "font-bold text-green-700" : ""
+                                            formData.recruitmentStatus === "OPEN" ? "font-bold text-green-700" : ""
                                         }`}
                                         onClick={() => {
-                                            setFormData((prev) => ({ ...prev, isActive: true }));
+                                            setFormData((prev) => ({ ...prev, recruitmentStatus: "OPEN" }));
                                             setIsStatusOpen(false);
                                         }}
                                     >
-                                        Active
+                                        OPEN
+                                    </button>
+                                    <button
+                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-yellow-50 hover:text-yellow-700 ${
+                                            formData.recruitmentStatus === "PAUSED" ? "font-bold text-yellow-700" : ""
+                                        }`}
+                                        onClick={() => {
+                                            setFormData((prev) => ({ ...prev, recruitmentStatus: "PAUSED" }));
+                                            setIsStatusOpen(false);
+                                        }}
+                                    >
+                                        PAUSED
                                     </button>
                                     <button
                                         className={`w-full text-left px-4 py-2 text-sm hover:bg-red-50 hover:text-red-700 ${
-                                            !formData.isActive ? "font-bold text-red-700" : ""
+                                            formData.recruitmentStatus === "CLOSED" ? "font-bold text-red-700" : ""
                                         }`}
                                         onClick={() => {
-                                            setFormData((prev) => ({ ...prev, isActive: false }));
+                                            setFormData((prev) => ({ ...prev, recruitmentStatus: "CLOSED" }));
                                             setIsStatusOpen(false);
                                         }}
                                     >
-                                        Inactive
+                                        CLOSED
                                     </button>
                                 </div>
                             )}

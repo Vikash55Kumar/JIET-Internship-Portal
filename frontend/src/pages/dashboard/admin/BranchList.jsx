@@ -273,6 +273,7 @@ function BranchList() {
                                         <tr key={branch._id} className="hover:bg-red-50/30 transition-colors group ">
                                             <td className="py-3 px-3 align-top max-w-[220px]">
                                                 <div className="font-bold text-gray-800 text-sm">{branch.name}</div>
+                                                <div className=" text-gray-500 text-sm">{branch._id}</div>
                                             </td>
                                             <td className="py-3 px-3 align-top">{branch.code}</td>
                                             <td className="py-3 px-3 align-top">{branch.college}</td>

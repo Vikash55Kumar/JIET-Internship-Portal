@@ -23,6 +23,7 @@ function ApplyCompany() {
   const domainDropdownRef = useRef(null);
   const companyDropdownRef = useRef(null);
   const locationDropdownRef = useRef(null);
+  const resumeInputRef = useRef(null);
   const domainCompanies = useAppSelector((state) => state.student.domainCompanies || []);
   const dispatch = useAppDispatch();
   // Use correct path for profile (state.auth.profile)
@@ -82,6 +83,7 @@ function ApplyCompany() {
 
   // 1. Handle Domain Change (Reset Company & Location)
   const handleDomainChange = async (domainObj) => {
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
     setCurrentSelection({
       domain: domainObj,
       company: null,
@@ -99,6 +101,7 @@ function ApplyCompany() {
 
   // 2. Handle Company Change (Reset Location)
   const handleCompanyChange = (companyObj) => {
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
     setCurrentSelection(prev => ({
       ...prev,
       company: companyObj,
@@ -122,6 +125,7 @@ function ApplyCompany() {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     if (file && file.size > MAX_RESUME_SIZE) {
       setError("Resume must be 1MB or smaller.");
+      if (resumeInputRef.current) resumeInputRef.current.value = "";
       setCurrentSelection(prev => ({ ...prev, resumeFile: null }));
       return;
     }
@@ -174,6 +178,7 @@ function ApplyCompany() {
 
     setChoices([...choices, newChoice]);
     // Reset Form and dropdown states
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
     setCurrentSelection({
       domain: null,
       company: null,
@@ -404,16 +409,22 @@ function ApplyCompany() {
                               <label className="block text-xs font-semibold text-gray-600 mb-1">Step 4: Upload Resume</label>
                               <div className="flex items-center gap-3">
                                 <input
+                                  ref={resumeInputRef}
                                   type="file"
                                   accept=".pdf"
                                   onChange={handleResumeChange}
-                                  className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 text-sm"
+                                  className="hidden"
                                 />
-                                {currentSelection.resumeFile && (
-                                  <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded px-2 py-1 max-w-[200px] truncate">
-                                    {currentSelection.resumeFile.name}
+                                <button
+                                  type="button"
+                                  onClick={() => resumeInputRef.current && resumeInputRef.current.click()}
+                                  className="w-full flex items-center justify-between border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 text-sm hover:border-red-400 transition-colors"
+                                >
+                                  <span className="text-gray-700">
+                                    {currentSelection.resumeFile ? currentSelection.resumeFile.name : "Choose file"}
                                   </span>
-                                )}
+                                  <span className="text-gray-400 text-xs">PDF</span>
+                                </button>
                               </div>
                               <div className="text-xs text-gray-400 mt-1">Max size 1MB. Format: PDF only.</div>
                             </div>

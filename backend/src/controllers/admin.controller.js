@@ -6,8 +6,10 @@ import { User } from "../models/user.model.js";
 import { Branch } from "../models/branch.model.js";
 import { Domain } from "../models/domain.model.js";
 import { Company } from "../models/company.model.js";
+import { FeatureSettings } from "../models/featureSettings.model.js";
 import xlsx from "xlsx";
 import { Faculty } from "../models/faculty.model.js";
+import mongoose from "mongoose";
 
 // Utility: Generate 6-digit temporary password
 function generateTempPassword() {
@@ -887,8 +889,8 @@ const allocateCompanyToStudent = asyncHandler(async (req, res) => {
   }
 
   const company = await Company.findById(companyId);
-  if (!company || !company.isActive) {
-    throw new ApiError(404, "Company not found or inactive");
+  if (!company || company.recruitmentStatus !== "OPEN") {
+    throw new ApiError(404, "Company not found or not open for recruitment");
   }
 
   if (company.filledSeats >= company.totalSeats) {
@@ -1048,6 +1050,15 @@ const downloadStudentTempPassword = asyncHandler(async (req, res) => {
       }
     },
     { $unwind: "$userInfo" },
+    {
+      $lookup: {
+        from: "branches",
+        localField: "branch",
+        foreignField: "_id",
+        as: "branchInfo"
+      }
+    },
+    { $unwind: "$branchInfo" },
     { $sort: { registrationNumber: 1 } }
   ]);
 
@@ -1060,8 +1071,9 @@ const downloadStudentTempPassword = asyncHandler(async (req, res) => {
     "Name": student.fullName,
     "Registration Number": student.registrationNumber || "",
     "Roll Number": student.rollNumber || "",
-    "Branch": student.branch ? student.branch.toString() : "",
+    "Branch": student.branchInfo.name || "",
     "Year": student.year || "",
+    "phoneNumber": student.phoneNumber || "",
     "Email": student.email || "",
     "Temporary Password": student.userInfo.tempPassword || "N/A"
   }));
@@ -1080,12 +1092,173 @@ const downloadStudentTempPassword = asyncHandler(async (req, res) => {
   return res.status(200).send(buffer);
 });
 
+// Download Student Applications Company wise
+const downloadCompanyStudents = asyncHandler(async (req, res) => {
+  const { companyId, type } = req.body;
+
+  if (!companyId) {
+    throw new ApiError(400, "companyId is required");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(companyId)) {
+    throw new ApiError(400, "Invalid companyId");
+  }
+
+  const company = await Company.findById(companyId).select("name");
+  if (!company) {
+    throw new ApiError(404, "Company not found");
+  }
+
+  const normalizedType = (type || "all").toString().toLowerCase().replace(/\s+/g, "_");
+  const baseQuery = { "internshipData.choices.company": companyId };
+  const query =
+    normalizedType === "alloted" || normalizedType === "allocated"
+      ? { ...baseQuery, "internshipData.allocatedCompany": companyId }
+      : normalizedType === "not_alloted" || normalizedType === "not_allocated"
+        ? { ...baseQuery, "internshipData.allocatedCompany": { $ne: companyId } }
+        : baseQuery;
+
+  const students = await Student.find(query)
+    .populate("branch", "name")
+    .populate("internshipData.choices.company", "name")
+    .populate("internshipData.choices.domain", "name");
+
+  if (!students || students.length === 0) {
+    throw new ApiError(404, "No students found for this company");
+  }
+
+  const data = students.map((student) => {
+    const matchedChoice = student?.internshipData?.choices?.find(
+      (choice) => choice?.company?._id?.toString() === companyId.toString()
+    );
+
+    return {
+      "Name": student.fullName || "",
+      "Registration Number": student.registrationNumber || "",
+      "Roll Number": student.rollNumber || "",
+      "Branch": student.branch?.name || "",
+      "Year": student.year || "",
+      "Phone Number": student.phoneNumber || "",
+      "Email": student.email || "",
+      "Allocated Company": company.name || "",
+      "Choice Priority": matchedChoice?.priority ?? "",
+      "Choice Location": matchedChoice?.location || "",
+      "Choice Domain": matchedChoice?.domain?.name || "",
+      "Choice Resume": matchedChoice?.resume || "",
+      "Approval Status": student?.internshipData?.approvalStatus || "",
+      "Allocation Status": student?.internshipData?.allocationStatus || ""
+    };
+  });
+
+  const worksheet = xlsx.utils.json_to_sheet(data);
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, "Students");
+
+  const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+  const safeCompanyName = (company.name || "company")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=${safeCompanyName || "company"}_allocated_students.xlsx`
+  );
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  return res.status(200).send(buffer);
+});
+
+// Download all allotted or unallotted students across all companies (only those who filled choices)
+const downloadAllCompanyStudents = asyncHandler(async (req, res) => {
+  const { type } = req.query;
+  const normalizedType = (type || "alloted").toString().toLowerCase().replace(/\s+/g, "_");
+  const isAllotted = normalizedType === "alloted" || normalizedType === "allocated";
+  const baseQuery = { "internshipData.choices.0": { $exists: true } };
+  const query = isAllotted
+    ? { ...baseQuery, "internshipData.allocationStatus": "ALLOCATED" }
+    : { ...baseQuery, "internshipData.allocationStatus": { $ne: "ALLOCATED" } };
+
+  const students = await Student.find(query)
+    .populate("branch", "name")
+    .populate("internshipData.allocatedCompany", "name")
+    .populate("internshipData.choices.company", "name")
+    .populate("internshipData.choices.domain", "name");
+
+  if (!students || students.length === 0) {
+    throw new ApiError(404, "No students found");
+  }
+
+  const data = students.map((student) => {
+    const chosenCompanies = Array.isArray(student?.internshipData?.choices)
+      ? student.internshipData.choices
+          .map((c) => c?.company?.name || "")
+          .filter(Boolean)
+          .join(", ")
+      : "";
+
+    return {
+      "Name": student.fullName || "",
+      "Registration Number": student.registrationNumber || "",
+      "Roll Number": student.rollNumber || "",
+      "Branch": student.branch?.name || "",
+      "Year": student.year || "",
+      "Phone Number": student.phoneNumber || "",
+      "Email": student.email || "",
+      "Allocated Company": isAllotted ? (student?.internshipData?.allocatedCompany?.name || "") : "",
+      "Chosen Companies": chosenCompanies,
+      "Approval Status": student?.internshipData?.approvalStatus || "",
+      "Allocation Status": student?.internshipData?.allocationStatus || ""
+    };
+  });
+
+  const workbook = xlsx.utils.book_new();
+  const sheet = xlsx.utils.json_to_sheet(data);
+  xlsx.utils.book_append_sheet(workbook, sheet, isAllotted ? "Allotted" : "Unallotted");
+
+  const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=all_company_${isAllotted ? "alloted" : "unalloted"}_students.xlsx`
+  );
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  return res.status(200).send(buffer);
+});
+
+// Feature flags: get/update (Admin/TPO)
+const getFeatureSettings = asyncHandler(async (req, res) => {
+  const role = req.user?.role;
+  if (role !== "ADMIN" && role !== "TPO" && role !== "FACULTY") {
+    throw new ApiError(403, "Only admin or TPO can access feature settings");
+  }
+  let settings = await FeatureSettings.findOne();
+  if (!settings) {
+    settings = await FeatureSettings.create({});
+  }
+  return res.status(200).json(new ApiResponse(200, settings, "Feature settings fetched"));
+});
+
+const updateFeatureSettings = asyncHandler(async (req, res) => {
+  const role = req.user?.role;
+  if (role !== "ADMIN" && role !== "TPO" && role !== "FACULTY") {
+    throw new ApiError(403, "Only admin or TPO can update feature settings");
+  }
+  const { enableUpdateDomain, enableApplyCompany, enableCompanyList, enableMyApplication } = req.body;
+  let settings = await FeatureSettings.findOne();
+  if (!settings) {
+    settings = await FeatureSettings.create({});
+  }
+  if (typeof enableUpdateDomain === "boolean") settings.enableUpdateDomain = enableUpdateDomain;
+  if (typeof enableApplyCompany === "boolean") settings.enableApplyCompany = enableApplyCompany;
+  if (typeof enableCompanyList === "boolean") settings.enableCompanyList = enableCompanyList;
+  if (typeof enableMyApplication === "boolean") settings.enableMyApplication = enableMyApplication;
+  await settings.save();
+  return res.status(200).json(new ApiResponse(200, settings, "Feature settings updated"));
+});
 
 
 
 
-
-//   Temperory Admin Controllers
 
 // Bulk Student registration from table (Excel upload)
 const bulkRegisterStudentsFromTable = asyncHandler(async (req, res) => {
@@ -1165,6 +1338,10 @@ const bulkRegisterStudentsFromTable = asyncHandler(async (req, res) => {
       const branchId = cleanValue(row.branch_id); // external branch id from excel
       const collegeId = cleanValue(row.colg); // external college id from excel
       const year = parseInt(cleanValue(row.studentYr)); // year from excel
+      if (Number.isNaN(year)) {
+        results.push({ row: i + 1, status: "error", error: "Invalid year" });
+        continue;
+      }
       // Generate 6-digit temp password
       // NOTE: password is used for login (hashed), tempPassword is stored in plain text for reference (e.g., to show to user/admin)
       const password = generateTempPassword();
@@ -1256,77 +1433,20 @@ const bulkRegisterStudentsFromTable = asyncHandler(async (req, res) => {
 
   // Only return failed/skipped students (status: "error" or "skipped")
   const failed = results.filter(r => r.status === "error" || r.status === "skipped");
+  if (failed.length > 0) {
+    const worksheet = xlsx.utils.json_to_sheet(failed);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Errors");
+    const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Disposition", "attachment; filename=bulk_register_errors.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.status(200).send(buffer);
+  }
   return res.status(201).json(
-    new ApiResponse(201, failed, "Bulk student registration: failed/skipped students only")
+    new ApiResponse(201, [], "Bulk student registration completed successfully")
   );
 });
 
-// Test actual student bulk linkage and existence
-const testActualStudentBulk = asyncHandler(async (req, res) => {
-  console.log("testActualStudentBulk called");
-  let students = [];
-  if (req.files && req.files.length > 0) {
-    const file = req.files[0];
-    const workbook = xlsx.readFile(file.path);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    students = xlsx.utils.sheet_to_json(worksheet);
-  } else if (req.body.students) {
-    students = req.body.students;
-    if (typeof students === "string") {
-      try {
-        students = JSON.parse(students);
-      } catch (e) {
-        throw new ApiError(400, "Invalid students JSON");
-      }
-    }
-  }
-
-  if (!Array.isArray(students) || students.length === 0) {
-    throw new ApiError(400, "No student data provided");
-  }
-
-  const failedDetails = [];
-  for (let i = 0; i < students.length; i++) {
-    const row = students[i];
-    let email = row.stu_mailid || row.email;
-    if (typeof email === "string") {
-      email = email.replace(/\s+/g, "").trim();
-    }
-    const rollNumber = row.stu_no || row["Roll No."] || row.rollNumber;
-    let status = "ok";
-    let error = "";
-    // Check User exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      status = "error";
-      error = "User not found";
-    }
-    // Check Student exists
-    const student = await Student.findOne({ $or: [ { email }, { rollNumber } ] });
-    if (!student) {
-      status = "error";
-      error = error ? error + ", Student not found" : "Student not found";
-    }
-    // Check linkage if both exist
-    if (user && student) {
-      if (!user.profileId || String(user.profileId) !== String(student._id)) {
-        status = "error";
-        error = error ? error + ", User.profileId mismatch" : "User.profileId mismatch";
-      }
-      if (!student.user || String(student.user) !== String(user._id)) {
-        status = "error";
-        error = error ? error + ", Student.user mismatch" : "Student.user mismatch";
-      }
-    }
-    if (status === "error" && email) {
-      failedDetails.push({ row: i + 1, email, status, error });
-    }
-  }
-  return res.status(200).json(
-    new ApiResponse(200, failedDetails, "Details of students with failed linkage or missing records")
-  );
-});
 
 // Bulk Domain Registration from table (Excel upload)
 const bulkDomainRegistrationFromTable = asyncHandler(async (req, res) => {
@@ -1628,8 +1748,11 @@ export {
   fullResetAllStudentApplications,
   bulkRegisterStudentsFromTable,
   getTestStudentProfile,
-  testActualStudentBulk,
   bulkDomainRegistrationFromTable,
-  downloadStudentTempPassword
+  downloadStudentTempPassword,
+  downloadCompanyStudents,
+  downloadAllCompanyStudents,
+  getFeatureSettings,
+  updateFeatureSettings
   
 };

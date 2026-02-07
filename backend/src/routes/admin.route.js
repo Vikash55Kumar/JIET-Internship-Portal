@@ -18,6 +18,11 @@ import {
 	choiceResetAllStudentApplications,
 	fullResetAllStudentApplications,
 	downloadStudentTempPassword,
+	downloadCompanyStudents,
+	downloadAllCompanyStudents,
+	getFeatureSettings,
+	updateFeatureSettings,
+	bulkDomainRegistrationFromTable,
 } from "../controllers/admin.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 const router = Router();
@@ -39,9 +44,12 @@ router.post("/update-allocated-company",  verifyJWT, updateStudentAllocatedCompa
 router.post("/reset-student-choices", verifyJWT, choiceResetAllStudentApplications);
 router.post("/full-reset-students", verifyJWT, fullResetAllStudentApplications);
 router.get("/download-student-temp-passwords", verifyJWT, downloadStudentTempPassword);
-
-// router.route("/bulk-register").post( upload.array('students', 1), bulkRegisterStudentsFromTable);
-// router.route("/test-bulk-register").post( upload.array('students', 1), testActualStudentBulk);
+router.post("/download-company-students", verifyJWT, downloadCompanyStudents);
+router.get("/download-all-company-students", verifyJWT, downloadAllCompanyStudents);
+router.get("/feature-flags", verifyJWT, getFeatureSettings);
+router.put("/feature-flags", verifyJWT, updateFeatureSettings);
+router.route("/bulk-domain-register").post( upload.array('students', 1), bulkDomainRegistrationFromTable);
+router.route("/bulk-register").post( upload.array('students', 1), bulkRegisterStudentsFromTable);
 // router.post("/manual-domain-student-register", manualDomainStudentRegistration);
 // router.post("/test-profile", getTestStudentProfile); // For testing purposes
 

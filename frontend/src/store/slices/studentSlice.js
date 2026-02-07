@@ -38,7 +38,11 @@ export const getDomainCompaniesAsync = createAsyncThunk(
 const studentSlice = createSlice({
   name: 'student',
   initialState,
-  reducers: {},
+  reducers: {
+    setStudentLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(submitInternshipApplicationAsync.pending, (state) => {
@@ -82,4 +86,4 @@ const studentSlice = createSlice({
 });
 
 export default studentSlice.reducer;
-export const {} = studentSlice.actions;
+export const { setStudentLoading } = studentSlice.actions;

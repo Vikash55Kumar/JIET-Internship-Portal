@@ -30,11 +30,20 @@ export const upload = multer({
     fileSize: 1 * 1024 * 1024, // Limit file size to 1MB
   },
   fileFilter: (req, file, cb) => {
-    // Restrict to PDF and DOC/DOCX only
-    if (file.mimetype === "application/pdf") {
+    const allowedMimeTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv",
+      "application/csv",
+      "application/octet-stream"
+    ];
+    const allowedExtensions = [".pdf", ".xlsx", ".xls", ".csv"];
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF files are allowed!"), false);
+      cb(new Error("Only PDF, XLSX, XLS, or CSV files are allowed!"), false);
     }
   }
 });

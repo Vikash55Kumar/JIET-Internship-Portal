@@ -19,10 +19,15 @@ export const studentService = {
     return response.data.data;
   },
 
-  async downloadTrainingLetter() {
-    const response = await api.get('/students/training-letter', {
+  async downloadTrainingLetter(studentId) {
+    const response = await api.get(`/students/training-letter/${studentId}`, {
       responseType: 'blob',
     });
     return response.data; // Blob (PDF)
+  },
+
+  async getFeatureFlags() {
+    const response = await api.get('/students/feature-flags');
+    return response.data.data;
   },
 };
